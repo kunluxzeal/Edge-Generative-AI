@@ -43,7 +43,7 @@ MODEL_PATH = (
 
 IMAGE_PATH = (
     "/home/intelliscan/Documents/intelliscan/test_images/"
-    "good_orange_multi.jpg"
+    "bad_yam.jpg"
 )
 
 

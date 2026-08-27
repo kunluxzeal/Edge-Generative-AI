@@ -6,5 +6,6 @@ dependencies = [
     "fastapi[standard]>=0.141.1",
     "huggingface-hub>=1.28.0",
     "litert-lm>=0.16.1",
+    "picamera2>=0.3.37",
     "pillow>=12.3.0",
 ]

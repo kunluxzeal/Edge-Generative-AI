@@ -83,8 +83,6 @@
 #                 self.engine = None
 
 
-
-
 import ctypes
 import time
 from pathlib import Path
@@ -164,13 +162,10 @@ class GemmaService:
         self,
         image_path: str | Path,
         prompt: str,
-        max_output_tokens: int | None = 80,
+        max_output_tokens: int | None = 48,
     ) -> dict:
-        """
-        Inspect an image using Gemma 4 vision.
+        """Inspect an image using Gemma 4 vision."""
 
-        Uses the native LiteRT-LM visual token budget.
-        """
         if self.conversation is None:
             raise RuntimeError(
                 "GemmaService is not loaded. Call load() first."
@@ -188,11 +183,12 @@ class GemmaService:
 
         lib = self.conversation._lib
 
-        # The native function exists in LiteRT-LM 0.16.1,
+        # LiteRT-LM 0.16.1 exposes this native function,
         # but the Python wrapper does not expose it.
         lib.litert_lm_conversation_optional_args_create.restype = (
             ctypes.c_void_p
         )
+
         lib.litert_lm_conversation_optional_args_create.argtypes = []
 
         lib.litert_lm_conversation_optional_args_set_visual_token_budget.argtypes = [
@@ -200,39 +196,27 @@ class GemmaService:
             ctypes.c_int,
         ]
 
-        lib.litert_lm_conversation_optional_args_delete.argtypes = [
-            ctypes.c_void_p
-        ]
-
-        args_ptr = (
-            lib.litert_lm_conversation_optional_args_create()
-        )
-
-        if not args_ptr:
-            raise RuntimeError(
-                "Failed to create LiteRT-LM optional arguments."
-            )
-
-        lib.litert_lm_conversation_optional_args_set_visual_token_budget(
-            args_ptr,
-            self.visual_token_budget,
-        )
-
-        # Save the original methods.
+        # Save LiteRT-LM's normal optional-argument creator.
         original_create = self.conversation._create_optional_args
-        original_delete = self.conversation._delete_optional_args
-
 
         def custom_create(*args, **kwargs):
+            # Let LiteRT-LM create the pointer normally.
             ptr = original_create(*args, **kwargs)
 
+            # Some calls do not need optional arguments.
+            # We still need a pointer because we want to set
+            # the visual token budget.
             if ptr is None:
-                ptr = lib.litert_lm_conversation_optional_args_create()
+                ptr = (
+                    lib.litert_lm_conversation_optional_args_create()
+                )
+
                 if not ptr:
                     raise RuntimeError(
                         "Failed to create LiteRT-LM optional arguments."
                     )
 
+            # Add our visual token budget to this SAME pointer.
             lib.litert_lm_conversation_optional_args_set_visual_token_budget(
                 ptr,
                 self.visual_token_budget,
@@ -240,22 +224,20 @@ class GemmaService:
 
             return ptr
 
-        # Prevent send_message() from deleting our pointer.
-        def custom_delete(ptr):
-            original_delete(ptr)
-
         self.conversation._create_optional_args = custom_create
-        self.conversation._delete_optional_args = custom_delete
 
-        
         try:
             message = litert_lm.Message.user(
-                litert_lm.Contents([
-                    litert_lm.Content.ImageFile(
-                        str(image_path)
-                    ),
-                    litert_lm.Content.Text(prompt),
-                ])
+                litert_lm.Contents(
+                    [
+                        litert_lm.Content.ImageFile(
+                            str(image_path)
+                        ),
+                        litert_lm.Content.Text(
+                            prompt
+                        ),
+                    ]
+                )
             )
 
             start = time.perf_counter()
@@ -264,7 +246,8 @@ class GemmaService:
                 message,
                 max_output_tokens=max_output_tokens,
                 thinking_config=litert_lm.ThinkingConfig(
-                    enable_thinking=False
+                    enable_thinking=False,
+                    thinking_token_budget=0,
                 ),
             )
 
@@ -277,17 +260,12 @@ class GemmaService:
             }
 
         finally:
-            # Restore the original methods.
+            # Restore normal LiteRT-LM behavior.
             self.conversation._create_optional_args = original_create
-            self.conversation._delete_optional_args = original_delete
-
-            # Now safely free our pointer.
-            lib.litert_lm_conversation_optional_args_delete(
-                args_ptr
-            )
 
     def close(self) -> None:
         """Release LiteRT-LM resources."""
+
         if self.conversation is not None:
             self.conversation.close()
             self.conversation = None
