@@ -14,8 +14,8 @@ MODEL_PATH =(
 
 camera_service = CameraService(
     output_dir="/home/intelliscan/Documents/intelliscan/data/captures",
-    width=320,
-    height=240,
+    width=640,
+    height=480,
 )
 
 gemma_service = GemmaService(
@@ -25,118 +25,6 @@ gemma_service = GemmaService(
 )
 
 
-# INSPECTION_PROMPT = """
-#     You are a STRICT food-crop quality inspector.
-
-#     Examine the ENTIRE image carefully before making a decision.
-
-#     Identify the crop:
-#     Yam, Sweet Potato, or Orange.
-
-#     Then inspect every visible part of the crop for ABNORMALITY.
-
-#     IMPORTANT:
-#     Do NOT classify a clearly abnormal region as normal simply because
-#     the rest of the crop looks healthy.
-
-#     Look specifically for localized regions that are visually different
-#     from the surrounding healthy tissue.
-
-#     EXTERNAL SURFACE:
-
-#     Look for:
-
-#     - fuzzy or hairy growth
-#     - grey patches
-#     - green patches
-#     - white patches
-#     - black patches
-#     - brown patches
-#     - mold-like growth
-#     - dark spots
-#     - black spots
-#     - brown spots
-#     - rotting areas
-#     - bruises
-#     - sunken areas
-#     - damaged skin
-#     - unusual discoloration
-#     - cracks
-#     - holes
-#     - cuts
-#     - decay
-#     - abnormal texture
-
-#     A localized region that is clearly different in colour, texture,
-#     shape, or appearance from the surrounding healthy surface MUST be
-#     reported as an abnormality.
-
-#     Do NOT dismiss a clearly localized abnormal region as
-#     "natural colour variation".
-
-#     Pay particular attention to:
-
-#     - isolated dark regions
-#     - black regions
-#     - grey regions
-#     - brown regions
-#     - green regions
-#     - fuzzy regions
-#     - sunken regions
-#     - visibly degraded regions
-
-#     If one clearly abnormal region is visible, the crop is DEFECTIVE.
-
-#     INTERNAL TISSUE:
-
-#     If the crop is cut, sliced, peeled, or broken and flesh is visible,
-#     inspect the exposed flesh separately.
-
-#     Look for:
-
-#     - black tissue
-#     - dark brown tissue
-#     - brown discoloration
-#     - abnormal colour
-#     - rot
-#     - mold
-#     - decay
-#     - damaged tissue
-#     - cavities
-#     - unusual texture
-#     - degraded tissue
-
-#     If internal tissue cannot be seen, write:
-
-#     Internal: NOT VISIBLE
-
-#     IMPORTANT DECISION RULE:
-
-#     GOOD =
-#     No clearly visible abnormal region exists.
-
-#     DEFECTIVE =
-#     At least ONE clearly visible abnormal region exists on either:
-
-#     1. the external surface
-#     OR
-#     2. exposed internal tissue.
-
-#     Do NOT require the entire crop to look damaged.
-
-#     A single clearly visible defect is sufficient for DEFECTIVE.
-
-#     Use ONLY visible evidence.
-
-#     Do not infer hidden damage.
-
-#     Return ONLY these three lines:
-
-#     Crop: <Yam|Sweet Potato|Orange>
-#     Condition: <GOOD|DEFECTIVE>
-#     Defect: <NONE|short description>
-
-# """.strip()
 
 
 INSPECTION_PROMPT = """
@@ -147,7 +35,6 @@ INSPECTION_PROMPT = """
         The image must contain exactly one supported crop:
 
         Yam
-        Sweet Potato
         Orange
 
         If the main object is not clearly one of these crops, return UNKNOWN.
@@ -166,7 +53,7 @@ INSPECTION_PROMPT = """
 
         STEP 2 — INSPECT THE CROP
 
-        Only if the object is Yam, Sweet Potato, or Orange:
+        Only if the object is Yam or Orange:
 
         Inspect the entire visible crop for clearly abnormal regions.
 
@@ -190,10 +77,73 @@ INSPECTION_PROMPT = """
 
         Return exactly three lines:
 
-        Crop: <Yam|Sweet Potato|Orange|UNKNOWN>
+        Crop: <Yam|Orange|UNKNOWN>
         Condition: <GOOD|DEFECTIVE|UNKNOWN>
         Defect: <NONE|short visible description|UNSUPPORTED IMAGE>
 """.strip()
+
+
+
+
+
+
+VALID_CROPS = {
+    "Yam",
+    "Sweet Potato",
+    "Orange",
+    "UNKNOWN",
+}
+
+VALID_CONDITIONS = {
+    "GOOD",
+    "DEFECTIVE",
+    "UNKNOWN",
+}
+
+
+def parse_inspection_response(response) ->dict:
+    """Convert Gemma's text response into structured data."""
+
+    text = response["content"][0]["text"]
+
+    crop = "UNKNOWN"
+    condition = "UNKNOWN"
+    defect = "UNSUPPORTED IMAGE"
+
+    for line in text.splitlines():
+        line = line.strip()
+
+        if line.startswith("Crop:"):
+            crop = line.split(":",1)[1].strip()
+
+        elif line.startswith("Condition:"):
+            condition = line.split(":", 1)[1].strip()
+
+        elif line.startswith("Defect:"):
+            defect = line.split(":", 1)[1].strip()
+
+    
+    # Backend validation.
+    if crop not in VALID_CROPS:
+        return {
+            "crop": "UNKNOWN",
+            "condition": "UNKNOWN",
+            "defect": "UNSUPPORTED IMAGE",
+        }
+
+    if condition not in VALID_CONDITIONS:
+        condition = "UNKNOWN"
+
+    if condition == "UNKNOWN":
+        defect = "UNSUPPORTED IMAGE"
+
+    return {
+        "crop": crop,
+        "condition": condition,
+        "defect": defect,
+    }
+
+
 
 
 @router.post("/inspect")
@@ -213,16 +163,29 @@ def inspect_camera():
             max_output_tokens =30
         )
 
-        return {
-            "image": str(image_path),
-            "response": result["response"],
-            "elapsed_time":result["elapsed_time"],
-            "visual_token_budget": result["visual_token_budget"]
+        parsed = parse_inspection_response(result["response"])
 
+        return {
+            **parsed,
+            "image": str(image_path),
+            "elapsed_time": result["elapsed_time"],
+            "visual_token_budget": result["visual_token_budget"],
         }
+
+        # return {
+        #     "image": str(image_path),
+        #     "response": result["response"],
+        #     "elapsed_time":result["elapsed_time"],
+        #     "visual_token_budget": result["visual_token_budget"]
+
+        # }
 
     except Exception as exc:
         raise HTTPException(
             status_code=500,
             detail=str(exc),
         )from exc
+
+
+
+    

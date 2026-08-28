@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from api.inference import gemma_service,camera_service ,router as inference_router
+from api.camera import router as camera_router
 
 
 
@@ -36,6 +37,7 @@ app = FastAPI(
 )
 
 app.include_router(inference_router)
+app.include_router(camera_router)
 
 @app.get("/")
 async def root():

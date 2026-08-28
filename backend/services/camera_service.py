@@ -1,5 +1,6 @@
 from __future__ import annotations
-
+import io 
+from PIL import Image
 import time 
 from pathlib import Path
 from picamera2 import Picamera2
@@ -56,6 +57,71 @@ class CameraService:
         self.camera.capture_file(str(output_path))
 
         return output_path
+
+    def capture_frame(self) -> bytes:
+        """Capture one preview frame as JPEG bytes"""
+        if not self.started or self.camera is None:
+            raise RuntimeError(
+                "cameraServise is not started. call start() first."
+            )
+        frame = self.camera.capture_array()
+
+        # Picamera2 RGB888 numpy buffers are BGR ordered.
+        frame = frame[:, :, ::-1]
+
+
+        image = Image.fromarray(frame)
+
+        buffer = io.BytesIO()
+
+        image.save(
+            buffer,
+            format = "JPEG",
+            quality = 80,
+
+        )
+        return buffer.getvalue()
+
+    def generate_frames(self):
+        """Generate continous JPEG frames for MJPEG streaming."""
+        if not self.started or self.camera is None:
+            raise RuntimeError("CameraService is not started.")
+
+        while self.started:
+            frame = self.camera.capture_array()
+
+            #Picamera2 RGB888 numpy buffers are BGR ordered
+            frame = frame[:, :,  ::-1]
+
+            image = Image.fromarray(frame)
+
+            buffer = io.BytesIO()
+
+            image.save(
+                buffer,
+                format = "JPEG",
+                quality = 80,
+            )
+
+            jpeg = buffer.getvalue()
+
+            yield (
+                b"--frame\r\n"
+                b"Content-Type: image/jpeg\r\n"
+                b"Content-Length: "
+                + str(len(jpeg)).encode()
+                + b"\r\n"
+                b"\r\n"
+                + jpeg
+                + b"\r\n"
+            )
+
+
+            time.sleep(0.03)
+
+
+
+    
 
 
     def stop(self) -> None:
