@@ -143,7 +143,25 @@ def parse_inspection_response(response) ->dict:
         "defect": defect,
     }
 
+@router.post("/capture")
+def capture_camera():
+    """Capture an image for inspection without running AI inference."""
+    try:
+        camera_service.start()
 
+        image_path = camera_service.capture(
+            "latest_inspection.jpg"
+        )
+
+        return {
+            "image": str(image_path),
+        }
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        ) from exc
 
 
 @router.post("/inspect")
@@ -185,6 +203,8 @@ def inspect_camera():
             status_code=500,
             detail=str(exc),
         )from exc
+
+
 
 
 
