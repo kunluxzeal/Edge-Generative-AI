@@ -564,37 +564,6 @@ FastAPI uses port `8000` in the documented setup. Reflex may choose another deve
 - [ ] Record capture time, inference time, and end-to-end request time under `data/logs/`.
 - [ ] Add startup services, environment-based paths/URLs, and network access controls.
 
-## GitHub hygiene
-
-Keep the repository focused on source code and documentation. In particular, avoid committing virtual environments, caches, generated output, or large model weights. A starting `.gitignore` could include:
-
-```gitignore
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-
-# Reflex / frontend build output
-.web/
-.bun/
-node_modules/
-build/
-dist/
-
-# Local model files and runtime cache (keep model terms in mind)
-models/gemma-4-E2B-it.litertlm/
-
-# Generated inspection data and logs
-data/captures/*.jpg
-data/logs/*
-
-# Local environment files
-.env
-.env.*
-!.env.example
-```
-
-Review the ignore rules against your repository before committing. If you want to keep test images under version control, do not add a blanket ignore rule for `test_images/`.
 
 ## License and model terms
 
