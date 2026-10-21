@@ -1,6 +1,6 @@
 <div align="center">
 
-# IntelliScan
+# AIScanner
 ### Offline Multimodal Edge AI Crop Inspection
 
 Inspect supported crops locally with a Raspberry Pi camera and on-device Gemma vision inference.
@@ -17,7 +17,7 @@ Inspect supported crops locally with a Raspberry Pi camera and on-device Gemma v
 
 ## Overview
 
-**IntelliScan** is an edge-AI crop inspection application built around a Raspberry Pi 5, an IMX477 camera, Gemma 4 E2B, LiteRT-LM, FastAPI, and a Reflex frontend.
+**AIScanner** is an edge-AI crop inspection application built around a Raspberry Pi 5, an IMX477 camera, Gemma 4 E2B, LiteRT-LM, FastAPI, and a Reflex frontend.
 
 The application captures an image, runs vision inference locally, and returns a structured visual quality assessment. Inspection images are processed on the device rather than sent to a cloud inference service.
 
@@ -31,7 +31,7 @@ The application captures an image, runs vision inference locally, and returns a 
 
 Images that do not contain a supported crop are intended to return `UNKNOWN` for the crop and condition, with `UNSUPPORTED IMAGE` as the defect value.
 
-> **Important:** IntelliScan provides an AI-assisted assessment of visible features. It cannot determine internal damage that is not visible in the image and should not be treated as a food-safety guarantee.
+> **Important:** AIScanner provides an AI-assisted assessment of visible features. It cannot determine internal damage that is not visible in the image and should not be treated as a food-safety guarantee.
 
 ## Current project status
 
@@ -93,7 +93,7 @@ Package versions may vary between environments. In particular, the native `libca
 ## Repository structure
 
 ```text
-intelliscan/
+AIScanner/
 ├── backend/
 │   ├── api/
 │   │   ├── camera.py                 # Camera frame, stream, and inspection-image routes
@@ -164,7 +164,7 @@ Python `__pycache__` directories and compiled `.pyc` files are generated automat
 
 ## Installation
 
-The commands below assume the repository is located at `~/Documents/intelliscan` on the Raspberry Pi.
+The commands below assume the repository is located at `~/Documents/AIScanner` on the Raspberry Pi.
 
 ### 1. Install camera system packages
 
@@ -197,10 +197,10 @@ rpicam-hello --list-cameras
 The output should list the connected IMX477 camera. Test a still capture:
 
 ```bash
-mkdir -p ~/Documents/intelliscan/test_images
+mkdir -p ~/Documents/AIScanner/test_images
 
 rpicam-still \
-  -o ~/Documents/intelliscan/test_images/camera_test.jpg \
+  -o ~/Documents/AIScanner/test_images/camera_test.jpg \
   --width 320 \
   --height 240 \
   --nopreview
@@ -211,7 +211,7 @@ If no camera is listed, resolve the CSI cable, connector orientation, camera ove
 ### 3. Set up the backend environment
 
 ```bash
-cd ~/Documents/intelliscan/backend
+cd ~/Documents/AIScanner/backend
 uv venv .venv --system-site-packages
 uv sync
 ```
@@ -235,7 +235,7 @@ PY
 ### 4. Set up the frontend environment
 
 ```bash
-cd ~/Documents/intelliscan/frontend
+cd ~/Documents/AIScanner/frontend
 uv sync
 uv run reflex --version
 ```
@@ -249,7 +249,7 @@ Run Reflex from the frontend directory. Keep the `app_name` and app-module confi
 The current setup uses a model directory similar to:
 
 ```text
-/home/intelliscan/Documents/intelliscan/models/gemma-4-E2B-it.litertlm
+/home/AIScanner/Documents/AIScanner/models/gemma-4-E2B-it.litertlm
 ```
 
 If the repository is moved or the Linux username changes, update the path used by `backend/api/inference.py`, or centralize it in `backend/config/settings.py`.
@@ -295,14 +295,14 @@ BACKEND_URL = "http://192.168.1.50:8000"
 
 Use the actual address assigned to your Raspberry Pi. Moving this value into an environment variable would make the deployment more portable.
 
-## Run IntelliScan
+## Run AIScanner
 
 Start the backend and frontend in **separate terminal sessions**. Start the backend first.
 
 ### Terminal 1 — FastAPI backend
 
 ```bash
-cd ~/Documents/intelliscan/backend
+cd ~/Documents/AIScanner/backend
 uv run uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
@@ -311,7 +311,7 @@ FastAPI initializes the camera and loads the Gemma engine during application sta
 ### Terminal 2 — Reflex frontend
 
 ```bash
-cd ~/Documents/intelliscan/frontend
+cd ~/Documents/AIScanner/frontend
 uv run reflex run
 ```
 
@@ -382,7 +382,7 @@ A supported-crop result has this general structure. The values below are illustr
   "crop": "Orange",
   "condition": "DEFECTIVE",
   "defect": "Dark surface rot",
-  "image": "/home/intelliscan/Documents/intelliscan/data/captures/latest_inspection.jpg",
+  "image": "/home/AIScanner/Documents/AIScanner/data/captures/latest_inspection.jpg",
   "elapsed_time": 9.33,
   "visual_token_budget": 70
 }
@@ -395,7 +395,7 @@ An unsupported object is intended to return a normalized response such as:
   "crop": "UNKNOWN",
   "condition": "UNKNOWN",
   "defect": "UNSUPPORTED IMAGE",
-  "image": "/home/intelliscan/Documents/intelliscan/data/captures/latest_inspection.jpg",
+  "image": "/home/AIScanner/Documents/AIScanner/data/captures/latest_inspection.jpg",
   "elapsed_time": 8.81,
   "visual_token_budget": 70
 }
@@ -421,7 +421,7 @@ Run these checks from the project directories. The scripts are focused service/v
 ### Camera and Picamera2
 
 ```bash
-cd ~/Documents/intelliscan/backend
+cd ~/Documents/AIScanner/backend
 uv run python -c "from picamera2 import Picamera2; print('Picamera2 OK')"
 uv run python test_camera_service.py
 ```
@@ -431,7 +431,7 @@ Confirm that a capture is produced in the expected location and that it is a val
 ### Gemma vision experiments
 
 ```bash
-cd ~/Documents/intelliscan/backend
+cd ~/Documents/AIScanner/backend
 uv run python test_gemma_service.py
 uv run python test_gemma_vision.py
 uv run python test_gemma_budget.py
@@ -465,7 +465,7 @@ A sensor-probe message such as `failed to read chip id 477` with error `-121` in
 Ensure the OS package `python3-libcamera` is installed and the backend environment can access system site packages. If necessary, recreate the backend virtual environment:
 
 ```bash
-cd ~/Documents/intelliscan/backend
+cd ~/Documents/AIScanner/backend
 uv venv .venv --system-site-packages
 uv sync
 uv run python -c "import libcamera; from picamera2 import Picamera2; print('camera imports OK')"
@@ -527,7 +527,7 @@ POST http://127.0.0.1:8000/api/inference/inspect
 Run Reflex from the frontend project root:
 
 ```bash
-cd ~/Documents/intelliscan/frontend
+cd ~/Documents/AIScanner/frontend
 uv run reflex run
 ```
 
@@ -602,12 +602,12 @@ Review the repository's `LICENSE` for the application code. The Gemma model may 
 
 ## Acknowledgements
 
-IntelliScan builds on the Raspberry Pi camera stack, Picamera2, FastAPI, Reflex, LiteRT-LM, and Google's Gemma model family.
+AIScanner builds on the Raspberry Pi camera stack, Picamera2, FastAPI, Reflex, LiteRT-LM, and Google's Gemma model family.
 
 ---
 
 <div align="center">
 
-**IntelliScan — Local vision. On-device inference.**
+**AIScanner — Local vision. On-device inference.**
 
 </div>
